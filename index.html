@@ -1,0 +1,73 @@
+---
+layout: compress
+---
+<!DOCTYPE html>
+<html lang='en'>
+  <head>
+    <title>{{ site.title }}</title>
+    <meta content='width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no' name='viewport'/>
+    <meta content='text/html; charset=UTF-8' http-equiv='Content-Type'/>
+    <link rel='stylesheet' href='{{ '/css/main.css' | prepend: site.baseurl }}'>
+    <link href='https://fonts.googleapis.com/css?family=Roboto:300,400,500,700' rel='stylesheet'>
+  </head>
+  <body>
+    <main>
+      <header>SHLD</header>
+      <svg width="800" height="400"></svg>
+      <script src="https://d3js.org/d3.v4.min.js"></script>
+<script>
+function InitChart() {
+  if(!DATASETS["lnkd"]) return;
+  var data = DATASETS["lnkd"].data;
+
+  d3.select("svg").selectAll("*").remove();
+
+  var svg = d3.select("svg"),
+    MARGINS = {
+      top: 20,
+      right: 20,
+      bottom: 30,
+      left: 50
+    },
+    WIDTH = +svg.attr("width") - MARGINS.left - MARGINS.right,
+    HEIGHT = +svg.attr("height") - MARGINS.top - MARGINS.bottom,
+    g = svg.append("g").attr("transform", "translate(" + MARGINS.left + "," + MARGINS.top + ")");
+    x = d3.scaleTime()
+          .range([MARGINS.left, WIDTH - MARGINS.right])
+          .domain(d3.extent(data, d => d.time)),
+    y = d3.scaleLinear()
+          .range([HEIGHT - MARGINS.top, MARGINS.bottom])
+          .domain(d3.extent(data, d => +d.price));
+
+  g.append("g")
+    .attr("class", "x-axis")
+    .attr("transform", "translate(0," + HEIGHT + ")")
+    .call(d3.axisBottom(x))
+    .select(".domain")
+    .remove();
+
+  g.append("g")
+   .attr("class", "y-axis")
+   .call(d3.axisLeft(y));
+
+  var line = d3.line()
+               .x(d => x(d.time))
+               .y(d => y(d.price))
+               .curve(d3.curveStepAfter);
+
+  g.append("path")
+    .attr("fill", "none")
+    .attr("stroke", "steelblue")
+    .attr("stroke-width", 1.5)
+    .attr("d", line(data));
+
+}
+</script>
+
+
+
+    </main>
+    <aside></aside>
+    <script src='{{ '/js/main.js' | prepend: site.baseurl }}' charset='utf-8'></script>
+  </body>
+</html>

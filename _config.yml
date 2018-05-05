@@ -1,0 +1,13 @@
+# Site settings
+title: Stocks
+description: > # this means to ignore newlines until "baseurl:"
+  Live Stocks Demo
+
+# Build settings
+markdown: kramdown
+sass:
+  style: compressed
+compress_html:
+  clippings: [html, head, title, meta, link, body, main, aside, script, div, span]
+  comments: all
+  profile: false
