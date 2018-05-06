@@ -1,11 +1,13 @@
-'use strict';
+{ 'use strict';
 
+let STOCK_SELECTED;
 let STOCKS = {};
-let DATASET = {};
 let CHART = {
   active: [],
   dataset: {}
 };
+
+/********** WORKER **********/
 const worker = new SharedWorker('js/worker.js');
 worker.port.onmessage = ({data: {type, data}}) => handler[type](data);
 worker.onerror = err => worker.port.close();
@@ -40,12 +42,35 @@ function getDataSet(name) {
   });
 }
 
+function updateDataSet(name) {
+  if (CHART.active.includes(name))
+    getDataSet(name);
+}
+
 window.onbeforeunload = () => worker.port.postMessage({type:'close'});
 
-/***** VIEW *****/
+/********** VIEW **********/
+const $preload = document.getElementById("preload");
 const $main = document.getElementsByTagName('main')[0];
 const $aside = document.getElementsByTagName('aside')[0];
 const $stocks = {};
+
+function createElement(type, id, className, content) {
+  const $el = document.createElement(type);
+  if (id) $el.id = id;
+  if (className) $el.setAttribute('class', className);
+  if (content) $el.textContent = content;
+  return $el;
+}
+
+function appendChilds(el, childs) {
+  childs.map(c => el.appendChild(c));
+}
+
+function getElementByClassName(className) {
+  const elements = document.getElementsByClassName(className);
+  return elements ? elements[0] : null;
+}
 
 function fadeOut(el) {
   el.style.opacity = 1;
@@ -72,79 +97,22 @@ function fadeIn(el, display) {
   })();
 }
 
-function initView() {
-  const wait = setInterval(()=> {
-    if(Object.keys(STOCKS).length < 3) return;
-    fadeOut(document.getElementById("preload"));
-    clearInterval(wait);
-  }, 200);
-  Object.keys(STOCKS).map(updateView);
-}
-
-function updateView(name) {
-  if ($stocks[name]) {
-    updateStock(name);
-  } else {
-    $stocks[name] = newStock(name);
+function timeSince(date) {
+  const seconds = Math.floor((new Date() - date) / 1000);
+  const intervals = {
+    year : 31536000,
+    month: 2592000,
+    day: 86400,
+    hour: 3600,
+    minute: 60,
+    second: 1
   }
-}
-
-function updateDataSet(name) {
-  if (CHART.active.includes(name))
-    getDataSet(name);
-}
-
-function createElement(type, id, className, content) {
-  const $el = document.createElement(type);
-  if (id) $el.id = id;
-  if (className) $el.setAttribute('class', className);
-  if (content) $el.textContent = content;
-  return $el;
-}
-
-function appendChilds(el, childs) {
-  childs.map(c => el.appendChild(c));
-}
-
-function stockOnClick() {
-  const name = this.id;
-  getDataSet(name);
-  CHART.active = [name];
-}
-
-function newStock(name) {
-  const $stock = createElement('section', name, 'stock');
-  const $stock_name = createElement('div', null, 'stock__name', name);
-  const $stock_price = createElement('div', null, 'stock__price', STOCKS[name].price);
-  const $stock_change = createElement('div', null, 'stock__change');
-  const $stock_change_span = createElement('span');
-  $stock_change.appendChild($stock_change_span);
-  $stock.onclick = stockOnClick;
-  appendChilds($stock, [$stock_name, $stock_price, $stock_change]);
-  $aside.appendChild($stock);
-  fadeIn($stock, "grid");
-  return $stock;
-}
-
-function updateStock(name) {
-  const stock = STOCKS[name];
-  const $stock = $stocks[name];
-  const $stock_price = $stock.children[1];
-  const $stock_change = $stock.children[2].children[0];
-  $stock_price.textContent = stock.price;
-  $stock_change.textContent = stock.change + "%";
-  updateStockChange($stock_change, name);
-  return $stock;
-}
-
-function updateStockChange(el, name) {
-  const change = STOCKS[name].change;
-  const currClass = el.className;
-  if (change > 0 && currClass != 'stock__change--profit') {
-    el.className = 'stock__change--profit';
-  } else if (change < 0 && currClass != 'stock__change--loss') {
-    el.className = 'stock__change--loss';
+  for (let i in intervals) {
+    const calc = Math.floor(seconds / intervals[i]);
+    if (calc > 1) return `${calc} ${i}s ago`;
+    else if (calc == 1) return `${calc} ${i} ago`;
   }
+  return `just now`;
 }
 
 // https://gist.github.com/jdarling/06019d16cb5fd6795edf
@@ -181,8 +149,94 @@ const randomColor = (() => {
   };
 })();
 
-/***** CHART *****/
+const scheduler = setInterval(() => {
+  if (STOCK_SELECTED) updateContentSummary(STOCK_SELECTED);
+}, 5000);
 
+function initView() {
+  const wait = setInterval(()=> {
+    const keys = Object.keys(STOCKS);
+    if(keys.length < 3) return;
+    clearInterval(wait);
+    stockSelected(keys[0]);
+    fadeOut($preload);
+  }, 300);
+  Object.keys(STOCKS).map(updateView);
+}
+
+function updateView(name) {
+  if ($stocks[name]) {
+    updateStock(name);
+  } else {
+    $stocks[name] = newStock(name);
+  }
+  if (STOCK_SELECTED == name) updateContent(name);
+}
+
+function newStock(name) {
+  const $stock = createElement('section', name, 'stock');
+  const $stock_name = createElement('div', null, 'stock__name', name);
+  const $stock_price = createElement('div', null, 'stock__price', STOCKS[name].price);
+  const $stock_change = createElement('div', null, 'stock__change');
+  const $stock_change_span = createElement('span');
+  $stock_change.appendChild($stock_change_span);
+  $stock.onclick = function () { stockSelected(this.id); };
+  appendChilds($stock, [$stock_name, $stock_price, $stock_change]);
+  $aside.appendChild($stock);
+  fadeIn($stock, "grid");
+  return $stock;
+}
+
+function updateStock(name) {
+  const stock = STOCKS[name];
+  const $stock = $stocks[name];
+  const $stock_price = $stock.children[1];
+  const $stock_change = $stock.children[2].children[0];
+  $stock_price.textContent = stock.price;
+  $stock_change.textContent = stock.change + "%";
+  updateStockChange($stock_change, name);
+  return $stock;
+}
+
+function stockSelected(name) {
+  const selectedClass = "stock--active";
+  if (STOCK_SELECTED) $stocks[STOCK_SELECTED].classList.remove(selectedClass);
+  STOCK_SELECTED = name;
+  CHART.active = [name];
+  $stocks[name].classList.add(selectedClass);
+  updateContent(name);
+  getDataSet(name);
+}
+
+function updateStockChange(el, name) {
+  const change = STOCKS[name].change;
+  const currClass = el.className;
+  if (change > 0 && currClass != 'stock__change--profit') {
+    el.className = 'stock__change--profit';
+  } else if (change < 0 && currClass != 'stock__change--loss') {
+    el.className = 'stock__change--loss';
+  }
+}
+
+function updateContent(name) {
+  const stock = STOCKS[name];
+  const $header = getElementByClassName("content__header");
+  const $high = getElementByClassName("content__details--high");
+  const $low = getElementByClassName("content__details--low");
+
+  $header.textContent = name;
+  $high.textContent = stock.high;
+  $low.textContent = stock.low;
+  updateContentSummary(name);
+}
+
+function updateContentSummary(name) {
+  const updatedAt = STOCKS[name].updatedAt;
+  const $summary = getElementByClassName("content__details--summary");
+  $summary.textContent = timeSince(updatedAt);
+}
+
+/********** CHART **********/
 let chartLoaded = false;
 
 function initChart() {
@@ -278,3 +332,5 @@ function chartDomain() {
   });
   return DOMAIN;
 }
+
+} // IIFE

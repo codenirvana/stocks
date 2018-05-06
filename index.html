@@ -33,13 +33,21 @@ layout: compress
       <section class="content">
         <header class="content__header"></header>
         <details open class="content__details">
-            <summary>Last Updated: 10sec ago</summary>
-            <p>High: 990</p>
-            <p>Low: 80</p>
+          <summary>
+            LAST UPDATED: <span class="content__details--summary"></span>
+          </summary>
+          <p>
+            HIGH: <span class="content__details--high"></span>
+          </p>
+          <p>
+            LOW: <span class="content__details--low"></span>
+          </p>
         </details>
       </section>
       <section class="analytics">
-        <svg id="chart" preserveAspectRatio="xMinYMid"></svg>
+        <div class="analytics__container">
+          <svg id="chart" preserveAspectRatio="xMinYMid"></svg>
+        </div>
       </section>
     </main>
     <aside></aside>

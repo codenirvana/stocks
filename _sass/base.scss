@@ -36,11 +36,17 @@ aside {
 }
 
 .content {
-  &__header {
+  margin: 30px;
 
+  &__header {
+    color: $color-accent;
+    font-weight: 700;
+    font-size: 35px;
+    text-transform: uppercase;
   }
 
   &__details {
+    color: lighten($color-text, 20%);
 
     summary {
       cursor: pointer;
@@ -48,24 +54,71 @@ aside {
         display: none
       }
     }
+
+    p {
+      margin-top: 5px;
+      margin-left: 3px;
+    }
+
+    span {
+      margin-left: 10px;
+    }
+
+    &--summary {
+      color: $color-text;
+      text-transform: capitalize;
+    }
+
+    &--high {
+      color: #59a78c;
+    }
+
+    &--low {
+      color: #e35d6e;
+    }
   }
 }
 
 .analytics {
+  margin: 30px;
 
+  &__container {
+    background-color: $bg-primary;
+    border-radius: 10px;
+    padding: 10px;
+    box-shadow: 5px 5px 15px 2px rgba(0,0,0,0.05);
+  }
+}
+
+#chart {
+  .y-axis .domain, .tick line {
+    stroke: $bg-secondary;
+  }
+
+  .tick text {
+    font-family: $font-family;
+    fill: $color-text;
+  }
 }
 
 .stock {
+  background-position: center;
   display: grid;
   grid-template-columns: 30% 30% 40%;
   padding: 16px;
   position: relative;
   cursor: pointer;
   text-transform: uppercase;
-  transition: background-color 150ms ease-in-out;
+  transition: background 0.8s;
 
   &:hover {
-    background-color: $bg-secondary;
+    background: $bg-secondary radial-gradient(circle, transparent 1%, $bg-secondary 1%) center/15000%;
+  }
+
+  &:active {
+    background-color: $color-accent;
+    background-size: 100%;
+    transition: background 0s;
   }
 
   &:after {
@@ -75,6 +128,10 @@ aside {
     left: 2%;
     bottom: 0;
     border-bottom: 1px solid $bg-secondary;
+  }
+
+  &--active {
+    background: $bg-secondary;
   }
 
   &__name {
