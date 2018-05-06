@@ -31,7 +31,10 @@ const handler = {
   getDataSet: (port, name) => {
     port.postMessage({
       type: "dataset",
-      data: STOCKS.getDataSet(name)
+      data: {
+        name,
+        dataset: STOCKS.getDataSet(name)
+      }
     });
   },
   close: (port) => PORTS.splice(PORTS.indexOf(port), 1)

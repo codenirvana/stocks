@@ -30,7 +30,17 @@ layout: compress
   </div>
   <div id="wrapper">
     <main>
-      <svg width="800" height="400"></svg>
+      <section class="content">
+        <header class="content__header"></header>
+        <details open class="content__details">
+            <summary>Last Updated: 10sec ago</summary>
+            <p>High: 990</p>
+            <p>Low: 80</p>
+        </details>
+      </section>
+      <section class="analytics">
+        <svg id="chart" preserveAspectRatio="xMinYMid"></svg>
+      </section>
     </main>
     <aside></aside>
   </div>

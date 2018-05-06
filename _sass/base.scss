@@ -13,6 +13,7 @@
 body {
   font-family: $font-family;
   font-size: $font-size;
+  user-select: none;
 }
 
 #wrapper {
@@ -26,11 +27,32 @@ body {
 
 main {
   background-color: $bg-secondary;
-  box-shadow: inset -4px 0px 10px 0px rgba(0,0,0,0.05)
+  box-shadow: inset -4px 0px 10px 0px rgba(0,0,0,0.05);
+  overflow: hidden;
 }
 
 aside {
   overflow-y: auto;
+}
+
+.content {
+  &__header {
+
+  }
+
+  &__details {
+
+    summary {
+      cursor: pointer;
+      &::-webkit-details-marker {
+        display: none
+      }
+    }
+  }
+}
+
+.analytics {
+
 }
 
 .stock {

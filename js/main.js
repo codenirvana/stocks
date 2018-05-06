@@ -1,7 +1,11 @@
 'use strict';
 
 let STOCKS = {};
-let CHART = [];
+let DATASET = {};
+let CHART = {
+  active: [],
+  dataset: {}
+};
 const worker = new SharedWorker('js/worker.js');
 worker.port.onmessage = ({data: {type, data}}) => handler[type](data);
 worker.onerror = err => worker.port.close();
@@ -15,10 +19,17 @@ const handler = {
   update: updates => {
     updates.map(({name, data}) => STOCKS[name] = data);
     updates.map(({name}) => updateView(name));
-    updates.map(({name}) => updateChart(name));
+    updates.map(({name}) => updateDataSet(name));
   },
-  dataset: dataset => {
-    loadChart(dataset);
+  dataset: ({name, dataset}) => {
+    if (!CHART.dataset[name]) {
+      CHART.dataset[name] = {
+        color: randomColor(),
+        data: []
+      }
+    }
+    CHART.dataset[name].data = dataset;
+    drawChart();
   }
 };
 
@@ -78,8 +89,8 @@ function updateView(name) {
   }
 }
 
-function updateChart(name) {
-  if (CHART.includes(name))
+function updateDataSet(name) {
+  if (CHART.active.includes(name))
     getDataSet(name);
 }
 
@@ -98,7 +109,7 @@ function appendChilds(el, childs) {
 function stockOnClick() {
   const name = this.id;
   getDataSet(name);
-  CHART = [name];
+  CHART.active = [name];
 }
 
 function newStock(name) {
@@ -136,25 +147,95 @@ function updateStockChange(el, name) {
   }
 }
 
-function loadChart(data) {
-  d3.select("svg").selectAll("*").remove();
+// https://gist.github.com/jdarling/06019d16cb5fd6795edf
+const randomColor = (() => {
+  const golden_ratio_conjugate = 0.618033988749895;
+  let h = Math.random();
+  const hslToRgb =  (h, s, l) => {
+    let r, g, b;
+    if (s == 0) {
+      r = g = b = l;
+    } else {
+      function hue2rgb(p, q, t) {
+        if(t < 0) t += 1;
+        if(t > 1) t -= 1;
+        if(t < 1/6) return p + (q - p) * 6 * t;
+        if(t < 1/2) return q;
+        if(t < 2/3) return p + (q - p) * (2/3 - t) * 6;
+        return p;
+      }
+      const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+      const p = 2 * l - q;
+      r = hue2rgb(p, q, h + 1/3);
+      g = hue2rgb(p, q, h);
+      b = hue2rgb(p, q, h - 1/3);
+    }
+    return '#' + Math.round(r * 255).toString(16)
+      + Math.round(g * 255).toString(16) + Math.round(b * 255).toString(16);
+  };
 
-  const svg = d3.select("svg");
+  return () => {
+    h += golden_ratio_conjugate;
+    h %= 1;
+    return hslToRgb(h, 0.5, 0.60);
+  };
+})();
+
+/***** CHART *****/
+
+let chartLoaded = false;
+
+function initChart() {
+  const svg = d3.select("#chart");
+  const container = d3.select(svg.node().parentNode);
+  const width = parseInt(container.style("width"));
+  let aspect;
+  if (!chartLoaded) {
+    chartLoaded = true;
+    aspect = 2;
+    onChartResize();
+  } else {
+    aspect = width / parseInt(svg.style("height"));
+  }
+  const height = Math.round(width / aspect);
+  svg.attr("width", width)
+     .attr("height", height)
+     .attr("viewBox", "0 0 " + width + " " + height);
+}
+
+function onChartResize() {
+  let timeout;
+  window.onresize = () => {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => {
+      initChart();
+      drawChart();
+    }, 300);
+  };
+}
+
+function drawChart() {
+  const svg = d3.select("#chart");
+  svg.selectAll("*").remove();
+  if (!chartLoaded) initChart();
+
+  const DOMAIN = chartDomain();
   const MARGINS = {
     top: 20,
     right: 20,
     bottom: 30,
-    left: 50
+    left: 30
   };
   const WIDTH = +svg.attr("width") - MARGINS.left - MARGINS.right;
   const HEIGHT = +svg.attr("height") - MARGINS.top - MARGINS.bottom;
   const g = svg.append("g").attr("transform", "translate(" + MARGINS.left + "," + MARGINS.top + ")");
+  const line = d3.line();
   const x = d3.scaleTime()
               .range([MARGINS.left, WIDTH - MARGINS.right])
-              .domain(d3.extent(data, d => d.time));
+              .domain(d3.extent(DOMAIN.time));
   const y = d3.scaleLinear()
               .range([HEIGHT - MARGINS.top, MARGINS.bottom])
-              .domain(d3.extent(data, d => +d.price));
+              .domain(d3.extent(DOMAIN.price));
 
   g.append("g")
    .attr("class", "x-axis")
@@ -167,14 +248,33 @@ function loadChart(data) {
    .attr("class", "y-axis")
    .call(d3.axisLeft(y));
 
-  const line = d3.line()
-                 .x(d => x(d.time))
-                 .y(d => y(d.price))
-                 .curve(d3.curveStepAfter);
+  line.x(d => x(d.time))
+      .y(d => y(d.price))
+      .curve(d3.curveStepAfter);
 
-  g.append("path")
-   .attr("fill", "none")
-   .attr("stroke", "steelblue")
-   .attr("stroke-width", 1.5)
-   .attr("d", line(data));
+  CHART.active.map(name => {
+    const dataset = CHART.dataset[name];
+    if (!dataset) return;
+    g.append("path")
+     .attr("fill", "none")
+     .attr("stroke", dataset.color)
+     .attr("stroke-width", 1.5)
+     .attr("d", line(dataset.data));
+  });
+}
+
+function chartDomain() {
+  const DOMAIN = {
+    price: [],
+    time: []
+  };
+  CHART.active.map(name => {
+    const dataset = CHART.dataset[name];
+    if (!dataset) return;
+    dataset.data.map(({price, time}) => {
+      DOMAIN.price.push(+price);
+      DOMAIN.time.push(time);
+    })
+  });
+  return DOMAIN;
 }
