@@ -4,8 +4,10 @@
 @charset "utf-8";
 
 $bg-primary: #FBFBFC;
-$bg-secondary: #ECEEF1;
+$bg-secondary: darken($bg-primary, 5%);
 $color-accent: #6883DE;
 $color-text: #6C6F79;
+$font-size: 15px;
+$font-family: 'Roboto', sans-serif;
 
 @import "loader", "base", "media";

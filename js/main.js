@@ -1,6 +1,7 @@
 'use strict';
 
 let STOCKS = {};
+let CHART = [];
 const worker = new SharedWorker('js/worker.js');
 worker.port.onmessage = ({data: {type, data}}) => handler[type](data);
 worker.onerror = err => worker.port.close();
@@ -14,10 +15,10 @@ const handler = {
   update: updates => {
     updates.map(({name, data}) => STOCKS[name] = data);
     updates.map(({name}) => updateView(name));
+    updates.map(({name}) => updateChart(name));
   },
   dataset: dataset => {
     loadChart(dataset);
-    console.log("--->", dataset);
   }
 };
 
@@ -77,16 +78,27 @@ function updateView(name) {
   }
 }
 
-function createElement(type, id, className, content) {
-  const $elem = document.createElement(type);
-  if (id) $elem.id = id;
-  if (className) $elem.setAttribute('class', className);
-  if (content) $elem.textContent = content;
-  return $elem;
+function updateChart(name) {
+  if (CHART.includes(name))
+    getDataSet(name);
 }
 
-function appendChilds(elem, childs) {
-  childs.map(c => elem.appendChild(c));
+function createElement(type, id, className, content) {
+  const $el = document.createElement(type);
+  if (id) $el.id = id;
+  if (className) $el.setAttribute('class', className);
+  if (content) $el.textContent = content;
+  return $el;
+}
+
+function appendChilds(el, childs) {
+  childs.map(c => el.appendChild(c));
+}
+
+function stockOnClick() {
+  const name = this.id;
+  getDataSet(name);
+  CHART = [name];
 }
 
 function newStock(name) {
@@ -96,7 +108,7 @@ function newStock(name) {
   const $stock_change = createElement('div', null, 'stock__change');
   const $stock_change_span = createElement('span');
   $stock_change.appendChild($stock_change_span);
-  $stock.onclick = function () { getDataSet(this.id) };
+  $stock.onclick = stockOnClick;
   appendChilds($stock, [$stock_name, $stock_price, $stock_change]);
   $aside.appendChild($stock);
   fadeIn($stock, "grid");
@@ -108,57 +120,61 @@ function updateStock(name) {
   const $stock = $stocks[name];
   const $stock_price = $stock.children[1];
   const $stock_change = $stock.children[2].children[0];
-  const currClass = $stock_change.className;
   $stock_price.textContent = stock.price;
   $stock_change.textContent = stock.change + "%";
-  if (stock.change > 0 && currClass != 'stock__change--profit') {
-    $stock_change.className = 'stock__change--profit';
-  } else if (stock.change < 0 && currClass != 'stock__change--loss') {
-    $stock_change.className = 'stock__change--loss';
-  }
+  updateStockChange($stock_change, name);
   return $stock;
+}
+
+function updateStockChange(el, name) {
+  const change = STOCKS[name].change;
+  const currClass = el.className;
+  if (change > 0 && currClass != 'stock__change--profit') {
+    el.className = 'stock__change--profit';
+  } else if (change < 0 && currClass != 'stock__change--loss') {
+    el.className = 'stock__change--loss';
+  }
 }
 
 function loadChart(data) {
   d3.select("svg").selectAll("*").remove();
 
-  var svg = d3.select("svg"),
-    MARGINS = {
-      top: 20,
-      right: 20,
-      bottom: 30,
-      left: 50
-    },
-    WIDTH = +svg.attr("width") - MARGINS.left - MARGINS.right,
-    HEIGHT = +svg.attr("height") - MARGINS.top - MARGINS.bottom,
-    g = svg.append("g").attr("transform", "translate(" + MARGINS.left + "," + MARGINS.top + ")"),
-    x = d3.scaleTime()
-          .range([MARGINS.left, WIDTH - MARGINS.right])
-          .domain(d3.extent(data, d => d.time)),
-    y = d3.scaleLinear()
-          .range([HEIGHT - MARGINS.top, MARGINS.bottom])
-          .domain(d3.extent(data, d => +d.price));
+  const svg = d3.select("svg");
+  const MARGINS = {
+    top: 20,
+    right: 20,
+    bottom: 30,
+    left: 50
+  };
+  const WIDTH = +svg.attr("width") - MARGINS.left - MARGINS.right;
+  const HEIGHT = +svg.attr("height") - MARGINS.top - MARGINS.bottom;
+  const g = svg.append("g").attr("transform", "translate(" + MARGINS.left + "," + MARGINS.top + ")");
+  const x = d3.scaleTime()
+              .range([MARGINS.left, WIDTH - MARGINS.right])
+              .domain(d3.extent(data, d => d.time));
+  const y = d3.scaleLinear()
+              .range([HEIGHT - MARGINS.top, MARGINS.bottom])
+              .domain(d3.extent(data, d => +d.price));
 
   g.append("g")
-    .attr("class", "x-axis")
-    .attr("transform", "translate(0," + HEIGHT + ")")
-    .call(d3.axisBottom(x))
-    .select(".domain")
-    .remove();
+   .attr("class", "x-axis")
+   .attr("transform", "translate(0," + HEIGHT + ")")
+   .call(d3.axisBottom(x))
+   .select(".domain")
+   .remove();
 
   g.append("g")
    .attr("class", "y-axis")
    .call(d3.axisLeft(y));
 
-  var line = d3.line()
-               .x(d => x(d.time))
-               .y(d => y(d.price))
-               .curve(d3.curveStepAfter);
+  const line = d3.line()
+                 .x(d => x(d.time))
+                 .y(d => y(d.price))
+                 .curve(d3.curveStepAfter);
 
   g.append("path")
-    .attr("fill", "none")
-    .attr("stroke", "steelblue")
-    .attr("stroke-width", 1.5)
-    .attr("d", line(data));
-
+   .attr("fill", "none")
+   .attr("stroke", "steelblue")
+   .attr("stroke-width", 1.5)
+   .attr("d", line(data));
 }
