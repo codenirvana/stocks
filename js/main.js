@@ -243,15 +243,12 @@ function initChart() {
   const svg = d3.select("#chart");
   const container = d3.select(svg.node().parentNode);
   const width = parseInt(container.style("width"));
-  let aspect;
+  const aspect = width > 600 ? 2 : 1.5;
+  const height = Math.round(width / aspect);
   if (!chartLoaded) {
     chartLoaded = true;
-    aspect = 2;
     onChartResize();
-  } else {
-    aspect = width / parseInt(svg.style("height"));
   }
-  const height = Math.round(width / aspect);
   svg.attr("width", width)
      .attr("height", height)
      .attr("viewBox", "0 0 " + width + " " + height);
