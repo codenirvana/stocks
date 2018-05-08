@@ -8,11 +8,6 @@ let CHART = {
 };
 
 /********** WORKER **********/
-const worker = new SharedWorker('js/worker.js');
-worker.port.onmessage = ({data: {type, data}}) => handler[type](data);
-worker.onerror = err => worker.port.close();
-worker.port.start();
-
 const handler = {
   init: stocks => {
     STOCKS = stocks;
@@ -35,19 +30,17 @@ const handler = {
   }
 };
 
+const worker = new WorkerClient('js/worker.js', handler);
+worker.postMessage("init");
+
 function getDataSet(name) {
-  worker.port.postMessage({
-    type: "getDataSet",
-    data: name
-  });
+  worker.postMessage("getDataSet", name);
 }
 
 function updateDataSet(name) {
   if (CHART.active.includes(name))
     getDataSet(name);
 }
-
-window.onbeforeunload = () => worker.port.postMessage({type:'close'});
 
 /********** VIEW **********/
 const $preload = document.getElementById("preload");
