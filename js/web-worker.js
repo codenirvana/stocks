@@ -1,19 +1,30 @@
+// Switch to Worker if SharedWorker is not available
+
+/**
+ * Check if function exists
+ * @method isAvailable
+ * @param  {string}    fnName function name
+ * @return {Boolean}
+ */
+function isAvailable(fnName) {
+  return fnName in self;
+}
+
+/**
+ * Worker Client Class
+ */
 class WorkerClient {
   constructor(file, handler) {
     if (!file || !handler) throw "Missing Required Arguments";
-    this.active = true;
     this._handler = handler;
-    if (this.isAvailable("SharedWorker")) {
+    if (isAvailable("SharedWorker")) {
       this.initSharedWorker(file);
-    } else if (this.isAvailable("Worker")) {
+    } else if (isAvailable("Worker")) {
       this.initWorker(file);
     } else {
-      this.active = false;
+      alert("Web Workers Not Supported");
+      throw "Web Workers Not Supported";
     }
-  }
-
-  isAvailable(fnName) {
-    return fnName in window;
   }
 
   initSharedWorker(file) {
@@ -37,20 +48,19 @@ class WorkerClient {
   }
 }
 
+/**
+ * Worker Class
+ */
 class WorkerServer {
   constructor(handler) {
     if (!handler) throw "Missing Required Arguments";
     this._handler = handler;
     this._ports = [];
-    if (this.isAvailable("onconnect")) {
+    if (isAvailable("onconnect")) {
       this.initSharedWorker();
-    } else if (this.isAvailable("onmessage")) {
+    } else if (isAvailable("onmessage")) {
       this.initWorker();
     }
-  }
-
-  isAvailable(fnName) {
-    return fnName in self;
   }
 
   closePort(port) {

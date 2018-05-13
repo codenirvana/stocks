@@ -33,21 +33,40 @@ const handler = {
 const worker = new WorkerClient('js/worker.js', handler);
 worker.postMessage("init");
 
+/**
+ * Post message to Get Stock's DataSet
+ * @method getDataSet
+ * @param  {string}   name stock name
+ */
 function getDataSet(name) {
   worker.postMessage("getDataSet", name);
 }
 
+/**
+ * Update DataSet if update stock is active in chart
+ * @method updateDataSet
+ * @param  {string}      name stock name
+ */
 function updateDataSet(name) {
   if (CHART.active.includes(name))
     getDataSet(name);
 }
 
 /********** VIEW **********/
-const $preload = document.getElementById("preload");
+const $preload = document.getElementById('preload');
 const $main = document.getElementsByTagName('main')[0];
 const $aside = document.getElementsByTagName('aside')[0];
 const $stocks = {};
 
+/**
+ * Create DOM element with provided properties
+ * @method createElement
+ * @param  {string}      type      element type
+ * @param  {string}      id        element id
+ * @param  {string}      className element class
+ * @param  {string}      content   element text content
+ * @return {object}                DOM Object
+ */
 function createElement(type, id, className, content) {
   const $el = document.createElement(type);
   if (id) $el.id = id;
@@ -56,15 +75,43 @@ function createElement(type, id, className, content) {
   return $el;
 }
 
+/**
+ * Append multiple childs to parent
+ * @method appendChilds
+ * @param  {object}     el     parent element
+ * @param  {array}     childs array of child elements
+ */
 function appendChilds(el, childs) {
   childs.map(c => el.appendChild(c));
 }
 
+/**
+ * Get first element with given class name
+ * @method getElementByClassName
+ * @param  {string}              className class searching for
+ * @return {object}                        dom object
+ */
 function getElementByClassName(className) {
   const elements = document.getElementsByClassName(className);
   return elements ? elements[0] : null;
 }
 
+/**
+ * Remove all childs from parent
+ * @method removeChilds
+ * @param  {object}     el parent dom object
+ */
+function removeChilds(el) {
+  while (el.firstChild) {
+    el.removeChild(el.firstChild);
+  }
+}
+
+/**
+ * FadeOut animation
+ * @method fadeOut
+ * @param  {object} el dom object
+ */
 function fadeOut(el) {
   el.style.opacity = 1;
 
@@ -77,6 +124,12 @@ function fadeOut(el) {
   })();
 }
 
+/**
+ * FadeIn animation
+ * @method fadeIn
+ * @param  {object} el      dom object
+ * @param  {string} display display property after fadeIn
+ */
 function fadeIn(el, display) {
   el.style.opacity = 0;
   el.style.display = display || "block";
@@ -90,6 +143,12 @@ function fadeIn(el, display) {
   })();
 }
 
+/**
+ * Calculate time since a given timestamp and current time
+ * @method timeSince
+ * @param  {object}  date date object
+ * @return {string}       time since in words
+ */
 function timeSince(date) {
   const seconds = Math.floor((new Date() - date) / 1000);
   const intervals = {
@@ -108,7 +167,12 @@ function timeSince(date) {
   return `just now`;
 }
 
-// https://gist.github.com/jdarling/06019d16cb5fd6795edf
+/**
+ * Generate random color
+ * Reference: https://gist.github.com/jdarling/06019d16cb5fd6795edf
+ * @method randomColor
+ * @return {string}      HEX color
+ */
 const randomColor = (() => {
   const golden_ratio_conjugate = 0.618033988749895;
   let h = Math.random();
@@ -142,10 +206,18 @@ const randomColor = (() => {
   };
 })();
 
+/**
+ * Update time since every 5 seconds
+ */
 const scheduler = setInterval(() => {
   if (STOCK_SELECTED) updateContentSummary(STOCK_SELECTED);
 }, 5000);
 
+/**
+ * Initialize View
+ * Show loader until 3 stocks received
+ * @method initView
+ */
 function initView() {
   const wait = setInterval(()=> {
     const keys = Object.keys(STOCKS);
@@ -157,6 +229,11 @@ function initView() {
   Object.keys(STOCKS).map(updateView);
 }
 
+/**
+ * Update View on stock update
+ * @method updateView
+ * @param  {string}   name stock name
+ */
 function updateView(name) {
   if ($stocks[name]) {
     updateStock(name);
@@ -166,6 +243,11 @@ function updateView(name) {
   if (STOCK_SELECTED == name) updateContent(name);
 }
 
+/**
+ * Create new stock entry
+ * @method newStock
+ * @param  {string} name stock name
+ */
 function newStock(name) {
   const $stock = createElement('section', name, 'stock');
   const $stock_name = createElement('div', null, 'stock__name', name);
@@ -174,12 +256,18 @@ function newStock(name) {
   const $stock_change_span = createElement('span');
   $stock_change.appendChild($stock_change_span);
   $stock.onclick = function () { stockSelected(this.id); };
+  $stock.oncontextmenu = function () {  compareStock(this.id); return false; };
   appendChilds($stock, [$stock_name, $stock_price, $stock_change]);
   $aside.appendChild($stock);
   fadeIn($stock, "grid");
   return $stock;
 }
 
+/**
+ * Update existing stock
+ * @method updateStock
+ * @param  {string}    name stock name
+ */
 function updateStock(name) {
   const stock = STOCKS[name];
   const $stock = $stocks[name];
@@ -191,16 +279,48 @@ function updateStock(name) {
   return $stock;
 }
 
+/**
+ * Stock onClick handler
+ * Get DataSet of selected stock and update content
+ * @method stockSelected
+ * @param  {string}      name stock name
+ */
 function stockSelected(name) {
   const selectedClass = "stock--active";
   if (STOCK_SELECTED) $stocks[STOCK_SELECTED].classList.remove(selectedClass);
   STOCK_SELECTED = name;
   CHART.active = [name];
   $stocks[name].classList.add(selectedClass);
-  updateContent(name);
   getDataSet(name);
+  updateContent(name);
+  updateCompare(name);
 }
 
+/**
+ * Add stock to compare list
+ * Compare upto 3 stock in chart
+ * @method compareStock
+ * @param  {string}     name stock name
+ */
+function compareStock(name) {
+  if (CHART.active.includes(name)) {
+    const index = CHART.active.indexOf(name);
+    CHART.active.splice(index, 1);
+  }
+  if (CHART.active.length == 3) {
+    return alert("Max Compare Limit Reached");
+  }
+  CHART.active.push(name);
+  getDataSet(name);
+  updateCompare(name);
+}
+
+/**
+ * Update stock change class based
+ * @method updateStockChange
+ * @param  {object}          el   stock change dom object
+ * @param  {string}          name stock name
+ */
 function updateStockChange(el, name) {
   const change = STOCKS[name].change;
   const currClass = el.className;
@@ -211,6 +331,11 @@ function updateStockChange(el, name) {
   }
 }
 
+/**
+ * Update stock content
+ * @method updateContent
+ * @param  {string}      name stock name
+ */
 function updateContent(name) {
   const stock = STOCKS[name];
   const $header = getElementByClassName("content__header");
@@ -223,15 +348,41 @@ function updateContent(name) {
   updateContentSummary(name);
 }
 
+/**
+ * Update stock time since
+ * @method updateContentSummary
+ * @param  {string}             name stock name
+ */
 function updateContentSummary(name) {
   const updatedAt = STOCKS[name].updatedAt;
   const $summary = getElementByClassName("content__details--summary");
   $summary.textContent = timeSince(updatedAt);
 }
 
+/**
+ * Update stock compare summary
+ * @method updateCompare
+ * @param  {string}      name stock name
+ */
+function updateCompare(name) {
+  setTimeout(() => {
+    const $compare = getElementByClassName('analytics__container--compare');
+    const $span = createElement('span', null, null, name);
+    const color = CHART.dataset[name].color;
+    $span.setAttribute("style", `color:${color}; border-bottom: 2px solid ${color};`);
+    if (CHART.active.length === 1) removeChilds($compare);
+    $compare.appendChild($span);
+    fadeIn($span, "inline");
+  }, 100);
+}
+
 /********** CHART **********/
 let chartLoaded = false;
 
+/**
+ * Initialize stock chart
+ * @method initChart
+ */
 function initChart() {
   const svg = d3.select("#chart");
   const container = d3.select(svg.node().parentNode);
@@ -247,6 +398,10 @@ function initChart() {
      .attr("viewBox", "0 0 " + width + " " + height);
 }
 
+/**
+ * Responsive chart on resize
+ * @method onChartResize
+ */
 function onChartResize() {
   let timeout;
   window.onresize = () => {
@@ -258,6 +413,10 @@ function onChartResize() {
   };
 }
 
+/**
+ * Draw chart with proved dataset
+ * @method drawChart
+ */
 function drawChart() {
   const svg = d3.select("#chart");
   svg.selectAll("*").remove();
@@ -307,6 +466,11 @@ function drawChart() {
   });
 }
 
+/**
+ * Get chart domain based on active stocks
+ * @method chartDomain
+ * @return {object}    d3 domain
+ */
 function chartDomain() {
   const DOMAIN = {
     price: [],

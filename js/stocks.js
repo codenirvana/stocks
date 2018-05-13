@@ -4,7 +4,7 @@ class DataSet {
   constructor(data) {
     this._data = data ? [data] : [];
     this._size = this._data.length;
-    this._MAX = 50;
+    this._MAX = 50; // MAX dataset
   }
 
   add(data) {
