@@ -303,10 +303,7 @@ function stockSelected(name) {
  * @param  {string}     name stock name
  */
 function compareStock(name) {
-  if (CHART.active.includes(name)) {
-    const index = CHART.active.indexOf(name);
-    CHART.active.splice(index, 1);
-  }
+  if (CHART.active.includes(name)) return;
   if (CHART.active.length == 3) {
     return alert("Max Compare Limit Reached");
   }
